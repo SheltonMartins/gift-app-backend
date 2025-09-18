@@ -1,3 +1,4 @@
+// src/server.ts
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
@@ -5,32 +6,42 @@ import userRoutes from './routes/userRoutes';
 import giftRoutes from './routes/giftRoutes';
 import friendRoutes from './routes/friendsRoutes';
 import authRoutes from './routes/authRoutes';
-import protectedRoutes from './routes/protectedRoutes';
 import 'dotenv/config';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Middleware CORS
+// Configuração do CORS para aceitar o frontend em produção
 app.use(cors({
-  origin: 'http://localhost:3001',
+  origin: [
+    'http://localhost:3000', // Para testes locais
+    'https://gift-app-beta.vercel.app' // Seu frontend na Vercel
+  ],
   credentials: true,
 }));
 
-app.use(express.json());
+// Configuração de sessão
 app.use(session({
   secret: process.env.SESSION_SECRET || 'chave-secreta',
   resave: false,
   saveUninitialized: false,
 }));
 
+// Middlewares
+app.use(express.json());
+
 // Rotas
 app.use('/users', userRoutes);
 app.use('/gifts', giftRoutes);
 app.use('/friends', friendRoutes);
 app.use('/auth', authRoutes);
-app.use('/protected', protectedRoutes);
 
 app.get('/', (req, res) => res.send('API funcionando 🚀'));
 
-app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
+// Exporta o app para a Vercel
+export default app;
+
+// Só executa localmente se não estiver na Vercel
+if (process.env.VERCEL === undefined) {
+  app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
+}
