@@ -11,12 +11,14 @@ import 'dotenv/config';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuração do CORS para aceitar o frontend em produção
+// Configuração do CORS para aceitar o frontend
 app.use(cors({
   origin: [
-    'http://localhost:3000', // Para testes locais
-    'https://gift-app-beta.vercel.app' // Seu frontend na Vercel
+    'http://localhost:3000',          // Para testes locais
+    'https://gift-app-beta.vercel.app', // Frontend em produção (ajuste se o domínio for outro)
   ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }));
 
@@ -43,5 +45,7 @@ export default app;
 
 // Só executa localmente se não estiver na Vercel
 if (process.env.VERCEL === undefined) {
-  app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
+  app.listen(PORT, () =>
+    console.log(`Servidor rodando em http://localhost:${PORT}`)
+  );
 }
