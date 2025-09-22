@@ -1,22 +1,18 @@
+// src/controllers/userController.ts
 import { Request, Response } from 'express';
-import { getDB } from '../db';
-import { User } from '../models/User';
-import bcrypt = require('bcrypt');
-import jwt = require('jsonwebtoken');
+import prisma from '../lib/prisma';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
-const db = getDB();
 const JWT_SECRET = 'seu_segredo_aqui';
 
-// Cadastro de usuário com nickname obrigatório
-export const registerUser = (req: Request, res: Response) => {
+// Cadastro de usuário
+export const registerUser = async (req: Request, res: Response) => {
   const { name, email, password, nickname, profile_picture, bio } = req.body;
 
-  // Campos obrigatórios
   if (!name || !email || !nickname) {
     return res.status(400).json({ error: 'Campos obrigatórios: name, email, nickname' });
   }
-
-  // Senha obrigatória para cadastro manual
   if (!password) {
     return res.status(400).json({ error: 'Senha obrigatória para cadastro manual' });
   }
@@ -24,18 +20,16 @@ export const registerUser = (req: Request, res: Response) => {
   const password_hash = bcrypt.hashSync(password, 10);
 
   try {
-    const stmt = db.prepare(
-      `INSERT INTO users (name, email, password_hash, nickname, profile_picture, bio) 
-       VALUES (?, ?, ?, ?, ?, ?)`
-    );
-    const info = stmt.run(name, email, password_hash, nickname, profile_picture, bio);
+    const user = await prisma.user.create({
+      data: { name, email, nickname, password_hash, profile_picture, bio },
+    });
 
     res.status(201).json({
       message: 'Usuário cadastrado',
-      userId: info.lastInsertRowid,
+      userId: user.id,
     });
   } catch (err: any) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+    if (err.code === 'P2002') {
       return res.status(400).json({ error: 'Email ou nickname já cadastrado' });
     }
     console.error(err);
@@ -43,51 +37,89 @@ export const registerUser = (req: Request, res: Response) => {
   }
 };
 
-
-
 // Login
 export const loginUser = async (req: Request, res: Response) => {
   const { email, password } = req.body;
   if (!email || !password)
     return res.status(400).json({ error: 'Email e senha obrigatórios' });
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User;
-  if (!user) return res.status(401).json({ error: 'Usuário não encontrado' });
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.password_hash) {
+      return res.status(401).json({ error: 'Usuário não encontrado ou sem senha cadastrada' });
+    }
 
-  const isValid = bcrypt.compareSync(password, user.password_hash);
-  if (!isValid) return res.status(401).json({ error: 'Senha incorreta' });
+    const isValid = bcrypt.compareSync(password, user.password_hash);
+    if (!isValid) return res.status(401).json({ error: 'Senha incorreta' });
 
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
-  res.json({ token, userId: user.id, name: user.name });
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token, userId: user.id, name: user.name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
 };
 
 // Buscar usuário pelo ID
-export const getUserById = (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const user = db
-    .prepare('SELECT id, name, email, nickname, profile_picture, bio FROM users WHERE id = ?')
-    .get(id);
-  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-  res.json(user);
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: Number(id) },
+      select: { id: true, name: true, email: true, nickname: true, profile_picture: true, bio: true },
+    });
+
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
 };
 
 // Buscar usuário pelo nickname
-export const searchUserByNickname = (req: Request, res: Response) => {
+export const searchUserByNickname = async (req: Request, res: Response) => {
   const { nickname } = req.params;
-  const user = db.prepare('SELECT id, name, nickname FROM users WHERE nickname = ?').get(nickname);
-  if (!user) return res.status(404).json({ error: 'Nickname não encontrado' });
-  res.json(user);
+  if (!nickname) return res.status(400).json({ error: 'Nickname é obrigatório' });
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { nickname },
+      select: { id: true, name: true, nickname: true },
+    });
+
+    if (!user) return res.status(404).json({ error: 'Nickname não encontrado' });
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
 };
 
 // Listar todos os usuários
-export const getAllUsers = (req: Request, res: Response) => {
-  const users = db.prepare('SELECT id, name, email, nickname, profile_picture, bio FROM users').all();
-  res.json(users);
+export const getAllUsers = async (_req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true, nickname: true, profile_picture: true, bio: true },
+    });
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro no servidor' });
+  }
 };
 
 // Listar presentes de um usuário
-export const getUserGifts = (req: Request, res: Response) => {
+export const getUserGifts = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const gifts = db.prepare('SELECT * FROM gifts WHERE user_id = ?').all(id);
-  res.json(gifts);
+  try {
+    const gifts = await prisma.gift.findMany({
+      where: { user_id: Number(id) },
+      orderBy: { created_at: 'desc' },
+    });
+    res.json(gifts);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar presentes' });
+  }
 };

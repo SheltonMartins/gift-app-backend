@@ -1,17 +1,11 @@
 // src/routes/friendRoutes.ts
-import { Router } from 'express';
-import { addFriend, getFriends, removeFriend } from '../controllers/friendController';
+import { Router } from 'express'
+import { addFriend, getFriends, removeFriend } from '../controllers/friendController'
 
+const router = Router()
 
-const router = Router();
+router.get('/', getFriends)
+router.post('/', addFriend)
+router.delete('/:friendId', removeFriend)
 
-// Lista todos os amigos do usuário logado
-router.get('/', getFriends);
-
-// Adiciona um amigo pelo nickname
-router.post('/', addFriend);
-
-
-router.delete('/:friendId', removeFriend);
-
-export default router;
+export default router
