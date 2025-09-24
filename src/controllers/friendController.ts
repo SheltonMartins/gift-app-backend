@@ -61,7 +61,7 @@ export const removeFriend = async (req: Request, res: Response) => {
   }
 };
 
-// Adicionar amigo pelo nickname
+// Adicionar amigo pelo nickname (recíproco)
 export const addFriend = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -73,21 +73,34 @@ export const addFriend = async (req: Request, res: Response) => {
     const decoded: any = jwt.verify(token, JWT_SECRET);
     const userId = decoded.id;
 
-    if (!nickname) return res.status(400).json({ error: 'Nickname é obrigatório' });
-
-    const friend = await prisma.user.findUnique({ where: { nickname: nickname } });
+    const friend = await prisma.user.findUnique({ where: { nickname } });
     if (!friend) return res.status(404).json({ error: 'Nickname não encontrado' });
 
+    if (friend.id === userId) {
+      return res.status(400).json({ error: 'Você não pode se adicionar como amigo' });
+    }
+
+    // Verifica se já existe A → B
     const existing = await prisma.friend.findFirst({
       where: { user_id: userId, friend_id: friend.id }
     });
-    if (existing) return res.status(400).json({ error: 'Amigo já adicionado' });
+    if (!existing) {
+      await prisma.friend.create({
+        data: { user_id: userId, friend_id: friend.id }
+      });
+    }
 
-    await prisma.friend.create({
-      data: { user_id: userId, friend_id: friend.id }
+    // Verifica se já existe B → A (para reciprocidade)
+    const reciprocal = await prisma.friend.findFirst({
+      where: { user_id: friend.id, friend_id: userId }
     });
+    if (!reciprocal) {
+      await prisma.friend.create({
+        data: { user_id: friend.id, friend_id: userId }
+      });
+    }
 
-    res.json({ message: 'Amigo adicionado', friendId: friend.id });
+    res.json({ message: 'Amizade adicionada (recíproca)', friendId: friend.id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao adicionar amigo' });
