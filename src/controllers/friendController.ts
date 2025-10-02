@@ -61,6 +61,32 @@ export const removeFriend = async (req: Request, res: Response) => {
   }
 };
 
+//encontra amigos do amigo em comum
+export const getFriendsOfUser = async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Não autorizado' });
+
+  try {
+    jwt.verify(token, JWT_SECRET); // só valida o token, não precisa ser o dono
+
+    const { userId } = req.params;
+
+    const friends = await prisma.friend.findMany({
+      where: { user_id: Number(userId) },
+      include: {
+        friend: { select: { id: true, name: true, nickname: true } }
+      }
+    });
+
+    res.json(friends.map((f: { friend: FriendDTO }) => f.friend));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar amigos do usuário' });
+  }
+};
+
+
+
 // Adicionar amigo pelo nickname (recíproco)
 export const addFriend = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
