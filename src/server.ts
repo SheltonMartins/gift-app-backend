@@ -7,6 +7,7 @@ import giftRoutes from './routes/giftRoutes';
 import friendRoutes from './routes/friendsRoutes';
 import authRoutes from './routes/authRoutes';
 import 'dotenv/config';
+import giftCommentRoutes from './routes/giftCommentRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,7 +38,7 @@ app.use('/users', userRoutes);
 app.use('/gifts', giftRoutes);
 app.use('/friends', friendRoutes);
 app.use('/auth', authRoutes);
-
+app.use('/gift-comments', giftCommentRoutes);
 app.get('/', (req, res) => res.send('API funcionando 🚀'));
 
 // Exporta o app para a Vercel

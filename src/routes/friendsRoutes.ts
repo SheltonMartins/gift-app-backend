@@ -4,9 +4,9 @@ import { addFriend, getFriends, getFriendsOfUser, removeFriend } from '../contro
 
 const router = Router()
 
-router.get('/', getFriends)
-router.get('/:userId', getFriendsOfUser); // amigos de outro usuário
 router.post('/', addFriend)
+router.get('/:userId', getFriendsOfUser); // amigos de outro usuário
+router.get('/', getFriends)
 router.delete('/:friendId', removeFriend)
 
 export default router

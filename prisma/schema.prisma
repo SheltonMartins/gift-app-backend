@@ -12,6 +12,7 @@ datasource db {
 model User {
   id              Int      @id @default(autoincrement())
   name            String?
+  last_name       String?
   email           String   @unique
   nickname        String   @unique
   password_hash   String?
@@ -20,25 +21,38 @@ model User {
   createdAt       DateTime @default(now())
 
   // Relações
-  gifts   Gift[]
-  friends Friend[] @relation("User_Friends")
-  friended Friend[] @relation("Friend_Friends")
+  gifts        Gift[]
+  friends      Friend[]      @relation("User_Friends")
+  friended     Friend[]      @relation("Friend_Friends")
+  giftComments GiftComment[] @relation("User_GiftComments") // <-- nome da relação
 }
 
 model Gift {
-  id          Int      @id @default(autoincrement())
-  user_id     Int
-  title       String
-  description String?
-  image_url   String?
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  title        String
+  description  String?
+  image_url    String?
   product_link String?
-  created_at  DateTime @default(now())
+  created_at   DateTime @default(now())
 
-  user User @relation(fields: [user_id], references: [id])
+  user         User          @relation(fields: [user_id], references: [id])
+  giftComments GiftComment[] @relation("Gift_GiftComments")
+}
+
+model GiftComment {
+  id         Int      @id @default(autoincrement())
+  gift_id    Int
+  user_id    Int
+  comment    String
+  created_at DateTime @default(now())
+
+  gift Gift @relation("Gift_GiftComments", fields: [gift_id], references: [id])
+  user User @relation("User_GiftComments", fields: [user_id], references: [id])
 }
 
 model Friend {
-  id        Int  @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
   user_id   Int
   friend_id Int
 
