@@ -1,3 +1,4 @@
+// src/controllers/friendController.ts
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import jwt from 'jsonwebtoken';
@@ -11,7 +12,9 @@ type FriendDTO = {
   nickname: string;
 };
 
+// ----------------------
 // Listar amigos do usuário logado
+// ----------------------
 export const getFriends = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -35,7 +38,9 @@ export const getFriends = async (req: Request, res: Response) => {
   }
 };
 
-// Remover amigo
+// ----------------------
+// Remover amigo (recíproco) ✅ ALTERADO
+// ----------------------
 export const removeFriend = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -45,23 +50,40 @@ export const removeFriend = async (req: Request, res: Response) => {
     const userId = decoded.id;
     const { friendId } = req.params;
 
-    const existing = await prisma.friend.findFirst({
-      where: { user_id: userId, friend_id: Number(friendId) }
+    // Verifica se a relação existe em pelo menos um dos lados
+    const friendRelation = await prisma.friend.findFirst({
+      where: {
+        OR: [
+          { user_id: userId, friend_id: Number(friendId) },
+          { user_id: Number(friendId), friend_id: userId }
+        ]
+      }
     });
 
-    if (!existing) {
+    if (!friendRelation) {
       return res.status(404).json({ error: 'Amizade não encontrada' });
     }
 
-    await prisma.friend.delete({ where: { id: existing.id } });
-    res.json({ message: 'Amizade removida com sucesso' });
+    // REMOVE NOS DOIS SENTIDOS
+    await prisma.friend.deleteMany({
+      where: {
+        OR: [
+          { user_id: userId, friend_id: Number(friendId) },
+          { user_id: Number(friendId), friend_id: userId }
+        ]
+      }
+    });
+
+    res.json({ message: 'Amizade removida de forma recíproca' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro ao remover amizade' });
   }
 };
 
-//encontra amigos do amigo em comum
+// ----------------------
+// Encontrar amigos de outro usuário
+// ----------------------
 export const getFriendsOfUser = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -85,9 +107,9 @@ export const getFriendsOfUser = async (req: Request, res: Response) => {
   }
 };
 
-
-
+// ----------------------
 // Adicionar amigo pelo nickname (recíproco)
+// ----------------------
 export const addFriend = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
