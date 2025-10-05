@@ -32,6 +32,7 @@ export const createGiftComment = async (req: Request, res: Response) => {
     const userId = decoded.id;
 
     const { gift_id, comment } = req.body; // <-- use gift_id
+    console.log(gift_id, comment)
     if (!gift_id || !comment) return res.status(400).json({ error: 'Campos obrigatórios' });
 
     const newComment = await prisma.giftComment.create({
