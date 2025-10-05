@@ -22,6 +22,27 @@ export const getGiftComments = async (req: Request, res: Response) => {
   }
 };
 
+// Buscar comentário por ID
+export const getCommentById = async (req: Request, res: Response) => {
+  const commentId = Number(req.params.commentId);
+  console.log(commentId)
+  if (!commentId) return res.status(400).json({ error: 'ID do comentário é obrigatório' });
+
+  try {
+    const comment = await prisma.giftComment.findUnique({
+      where: { id: commentId },
+      include: { user: true }, // inclui os dados do usuário que fez o comentário
+    });
+
+    if (!comment) return res.status(404).json({ error: 'Comentário não encontrado' });
+
+    res.json(comment);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar comentário' });
+  }
+};
+
 // Criar comentário
 export const createGiftComment = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
