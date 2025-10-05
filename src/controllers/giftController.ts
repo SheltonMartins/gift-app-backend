@@ -22,6 +22,46 @@ export const getUserGifts = async (req: Request, res: Response) => {
   }
 };
 
+// ✅ NOVO: Obter presente com comentários
+export const getGiftWithComments = async (req: Request, res: Response) => {
+  try {
+    const giftId = Number(req.params.giftId);
+    if (!giftId) return res.status(400).json({ error: 'ID de presente inválido' });
+
+    const gift = await prisma.gift.findUnique({
+      where: { id: giftId },
+      include: {
+        giftComments: { // <-- corrigido (plural)
+          orderBy: { created_at: 'desc' },
+          include: { user: true }
+        }
+      }
+    });
+
+    if (!gift) return res.status(404).json({ error: 'Presente não encontrado' });
+
+    const giftWithComments = {
+      id: gift.id,
+      title: gift.title,
+      description: gift.description,
+      image_url: gift.image_url,
+      product_link: gift.product_link,
+      created_at: gift.created_at,
+      comments: (gift.giftComments ?? []).map((c: any) => ({
+        id: c.id,
+        text: c.comment,
+        userName: c.user?.name ?? 'Usuário desconhecido',
+        createdAt: c.created_at
+      }))
+    };
+
+    res.json(giftWithComments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao buscar presente com comentários' });
+  }
+};
+
 // Deletar presente
 export const deleteGift = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(' ')[1];
