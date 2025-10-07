@@ -22,7 +22,7 @@ export const getUserGifts = async (req: Request, res: Response) => {
       }
     });
 
-    // 2. Mapear os dados para o formato de resposta desejado.
+ 
     const giftsWithComments = gifts.map((gift: any) => ({
       id: gift.id,
       title: gift.title,
@@ -30,10 +30,10 @@ export const getUserGifts = async (req: Request, res: Response) => {
       image_url: gift.image_url,
       product_link: gift.product_link,
       created_at: gift.created_at,
-      // Mapear os comentários para o formato que você usou anteriormente
+      userId: userId,
       comments: (gift.giftComments ?? []).map((c: any) => ({
         id: c.id,
-        text: c.comment, // Certifique-se de que o campo de texto do comentário é 'comment'
+        text: c.comment, 
         userName: c.user?.name ?? 'Usuário desconhecido',
         createdAt: c.created_at
       }))
