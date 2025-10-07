@@ -10,15 +10,39 @@ export const getUserGifts = async (req: Request, res: Response) => {
     const userId = Number(req.params.userId);
     if (!userId) return res.status(400).json({ error: 'ID de usuário inválido' });
 
+    // 1. Buscar todos os presentes do usuário, INCLUINDO os comentários e o usuário de cada comentário.
     const gifts = await prisma.gift.findMany({
       where: { user_id: userId },
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: 'desc' },
+      include: {
+        giftComments: {
+          orderBy: { created_at: 'desc' },
+          include: { user: true } // Inclui o usuário que fez o comentário
+        }
+      }
     });
 
-    res.json(gifts);
+    // 2. Mapear os dados para o formato de resposta desejado.
+    const giftsWithComments = gifts.map((gift: any) => ({
+      id: gift.id,
+      title: gift.title,
+      description: gift.description,
+      image_url: gift.image_url,
+      product_link: gift.product_link,
+      created_at: gift.created_at,
+      // Mapear os comentários para o formato que você usou anteriormente
+      comments: (gift.giftComments ?? []).map((c: any) => ({
+        id: c.id,
+        text: c.comment, // Certifique-se de que o campo de texto do comentário é 'comment'
+        userName: c.user?.name ?? 'Usuário desconhecido',
+        createdAt: c.created_at
+      }))
+    }));
+
+    res.json(giftsWithComments);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Erro ao buscar presentes' });
+    res.status(500).json({ error: 'Erro ao buscar presentes com comentários' });
   }
 };
 
